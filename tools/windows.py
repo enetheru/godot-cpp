@@ -1,13 +1,17 @@
 import sys
 import my_spawn
 import common_compiler_flags
-from SCons.Tool import msvc, mingw
+from SCons.Tool import msvc, mingw, clangxx
 from SCons.Variables import *
 
 
 def options(opts):
-    opts.Add(BoolVariable("use_mingw", "Use the MinGW compiler instead of MSVC - only effective on Windows", False))
+    # MSVC options
     opts.Add(BoolVariable("use_clang_cl", "Use the clang driver instead of MSVC - only effective on Windows", False))
+    # mingw options
+    opts.Add(BoolVariable("use_mingw", "Use the MinGW compiler instead of MSVC - only effective on Windows", False))
+    opts.Add(BoolVariable("use_clang", "Use clang as the MinGW compiler instead of gcc - only effective on "
+                                       "Windows-mingw", False))
     opts.Add(BoolVariable("use_static_cpp", "Link MinGW/MSVC C++ runtime libraries statically", True))
 
 
@@ -44,7 +48,10 @@ def generate(env):
 
     elif sys.platform == "win32" or sys.platform == "msys":
         env["use_mingw"] = True
-        mingw.generate(env)
+        if env['use_clang']:
+            clangxx.generate(env)
+        else:
+            mingw.generate(env)
         # Don't want lib prefixes
         env["IMPLIBPREFIX"] = ""
         env["SHLIBPREFIX"] = ""
