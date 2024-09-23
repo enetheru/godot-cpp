@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 project(godot-cpp LANGUAGES CXX)
 
+include(ProcessorCount)
+ProcessorCount(PROC_N)
+math(EXPR PROC_N "${PROC_N} -1" )
+if( PROC_N LESS 1 )
+    set( PROC_N 1 )
+endif ()
+
 # Get Python
 find_package(Python3 3.4 REQUIRED) # pathlib should be present
 

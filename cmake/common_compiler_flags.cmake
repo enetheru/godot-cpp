@@ -28,6 +28,7 @@ target_compile_options( ${PROJECT_NAME}
 PUBLIC
     # MSVC only
     $<${IS_MSVC}:
+        "/MP ${PROC_N}"
         /W4
 
         # Disable warnings which we don't plan to fix.
