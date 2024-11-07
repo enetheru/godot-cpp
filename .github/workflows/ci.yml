@@ -208,30 +208,6 @@ jobs:
           path: ${{ matrix.artifact-path }}
           if-no-files-found: error
 
-  linux-cmake:
-    name: 🐧 Build (Linux, GCC, CMake)
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -qqq build-essential pkg-config cmake
-
-      - name: Build godot-cpp
-        run: |
-          cmake -DCMAKE_BUILD_TYPE=Release .
-          make -j $(nproc) VERBOSE=1
-
-      - name: Build test GDExtension library
-        run: |
-          cd test && cmake -DCMAKE_BUILD_TYPE=Release -DGODOT_HEADERS_PATH="../godot-headers" -DCPP_BINDINGS_PATH=".." .
-          make -j $(nproc) VERBOSE=1
-
   linux-cmake-ninja:
     name: 🐧 Build (Linux, GCC, CMake Ninja)
     runs-on: ubuntu-22.04
@@ -246,15 +222,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -qqq build-essential pkg-config cmake ninja-build
 
-      - name: Build godot-cpp
-        run: |
-          cmake -DCMAKE_BUILD_TYPE=Release -GNinja .
-          cmake --build . -j $(nproc) --verbose
-
       - name: Build test GDExtension library
         run: |
-          cd test && cmake -DCMAKE_BUILD_TYPE=Release -DGODOT_HEADERS_PATH="../godot-headers" -DCPP_BINDINGS_PATH=".." -GNinja .
-          cmake --build . -j $(nproc) --verbose
+          mkdir cmake-build
+          cd cmake-build
+          cmake ../
+          cmake --build . --verbose -j $(nproc) -t godot-cpp-test
 
   windows-msvc-cmake:
     name: 🏁 Build (Windows, MSVC, CMake)
@@ -265,12 +238,36 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build godot-cpp
-        run: |
-          cmake -DCMAKE_BUILD_TYPE=Release -G"Visual Studio 16 2019" .
-          cmake --build . --verbose --config Release
-
       - name: Build test GDExtension library
         run: |
-          cd test && cmake -DCMAKE_BUILD_TYPE=Release -DGODOT_HEADERS_PATH="../godot-headers" -DCPP_BINDINGS_PATH=".." -G"Visual Studio 16 2019" .
-          cmake --build . --verbose --config Release
+          mkdir cmake-build
+          cd cmake-build
+          cmake ../
+          cmake --build . --verbose -t godot-cpp-test --config Release
+
+#      - name: Download latest Godot artifacts
+#        uses: dsnopek/action-download-artifact@1322f74e2dac9feed2ee76a32d9ae1ca3b4cf4e9
+#        with:
+#          repo: godotengine/godot
+#          branch: master
+#          event: push
+#          workflow: windows_builds.yml
+#          workflow_conclusion: success
+#          name: windows-x86_64-msvc
+#          search_artifacts: true
+#          check_artifacts: true
+#          ensure_latest: true
+#          path: godot-artifacts
+
+#          FIXME Error: no matching workflow run found with any artifacts?
+
+#      - name: Run tests
+#        run: |
+#          # Run the test project
+#          $godot="./godot-artifacts/godot.windows.editor.x86_64.exe"
+#          &$godot -e --path test\project\ --headless --quit *>$null
+#          $godot_tr = C:\build\godot\msvc.master\bin\godot.windows.template_release.x86_64.exe
+#          $godot_tr --path ..\test\project\ --headless --quit
+#          $output=&$godot --path test\project\ --headless --quit *>&1 | Out-String
+#          !$output.Contains("==== TESTS FINISHED ====")
+#          $output.Contains("******** FAILED ********")
