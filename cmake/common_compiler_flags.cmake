@@ -59,33 +59,6 @@ function( common_compiler_flags TARGET_NAME )
                 $<${IS_GNU}:-fno-gnu-unique>
             >
 
-            # TODO Set optimize
-            # "custom" means do nothing and let users set their own optimization flags.
-            #if env.get("is_msvc", False):
-                #if env["optimize"] == "speed":
-                    #env.Append(CCFLAGS=["/O2"])
-                    #env.Append(LINKFLAGS=["/OPT:REF"])
-                #elif env["optimize"] == "speed_trace":
-                    #env.Append(CCFLAGS=["/O2"])
-                    #env.Append(LINKFLAGS=["/OPT:REF", "/OPT:NOICF"])
-                #elif env["optimize"] == "size":
-                    #env.Append(CCFLAGS=["/O1"])
-                    #env.Append(LINKFLAGS=["/OPT:REF"])
-                #elif env["optimize"] == "debug" or env["optimize"] == "none":
-                    #env.Append(CCFLAGS=["/Od"])
-            #else:
-                #if env["optimize"] == "speed":
-                    #env.Append(CCFLAGS=["-O3"])
-                    ## `-O2` is friendlier to debuggers than `-O3`, leading to better crash backtraces.
-                #elif env["optimize"] == "speed_trace":
-                    #env.Append(CCFLAGS=["-O2"])
-                #elif env["optimize"] == "size":
-                    #env.Append(CCFLAGS=["-Os"])
-                #elif env["optimize"] == "debug":
-                    #env.Append(CCFLAGS=["-Og"])
-                #elif env["optimize"] == "none":
-                    #env.Append(CCFLAGS=["-O0"])
-
         # MSVC only
         $<${IS_MSVC}:
             "/MP ${PROC_N}"
