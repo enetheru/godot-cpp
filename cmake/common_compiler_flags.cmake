@@ -46,11 +46,6 @@ endfunction(  )
 
 function( common_compiler_flags )
 
-    target_compile_features(${TARGET_NAME}
-            PUBLIC
-            cxx_std_17
-    )
-
     # These compiler options reflect what is in godot/SConstruct.
     target_compile_options( ${TARGET_NAME}
         PUBLIC

@@ -55,13 +55,15 @@ if( CMAKE_SYSTEM_NAME STREQUAL Darwin )
 
     set_target_properties( godot-cpp-test
             PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY "$<1:${OUTPUT_DIR}>"
-            RUNTIME_OUTPUT_DIRECTORY "$<1:${OUTPUT_DIR}>"
 
             OUTPUT_NAME "gdexample.macos.${TEST_TARGET}${DEV}"
             SUFFIX ""
 
             #macos options
             OSX_ARCHITECTURES "${OSX_ARCH}"
+
+            # enable RPATH on MACOS, with the BUILD_RPATH_USE_ORIGIN
+            # this should allow loading libraries from relative paths on macos.
+            MACOSX_RPATH ON
     )
 endif ()
