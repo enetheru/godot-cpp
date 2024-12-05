@@ -48,7 +48,7 @@ function( common_compiler_flags )
 
     # These compiler options reflect what is in godot/SConstruct.
     target_compile_options( ${TARGET_NAME}
-        PUBLIC
+        PRIVATE
             # Disable exception handling. Godot doesn't use exceptions anywhere, and this
             # saves around 20% of binary size and very significant build time.
             $<${DISABLE_EXCEPTIONS}:
@@ -90,8 +90,6 @@ function( common_compiler_flags )
             /wd4514  # C4514 (unreferenced inline function has been removed)
             /wd4714  # C4714 (function marked as __forceinline not inlined)
             /wd4820  # C4820 (padding added after construct)
-
-            /utf-8
         >
 
         # Clang and GNU common options
@@ -153,7 +151,7 @@ function( common_compiler_flags )
     )
 
     target_link_options( ${TARGET_NAME}
-        PUBLIC
+        PRIVATE
             $<${IS_MSVC}:
                 /WX             # treat link warnings as errors.
                 /MANIFEST:NO    # We dont need a manifest

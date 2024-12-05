@@ -20,6 +20,13 @@ target_link_libraries( godot-cpp-test
         PRIVATE
         godot-cpp::${TEST_TARGET} )
 
+# These compiler options reflect what is in godot/SConstruct.
+target_compile_options( godot-cpp-test
+        PRIVATE
+        # Interpret source code files using utf8
+        $<${IS_MSVC}:/utf-8>
+)
+
 ### Get useful properties of the library
 get_target_property( GODOT_PLATFORM godot-cpp::${TEST_TARGET} GODOT_PLATFORM )
 get_target_property( GODOT_TARGET godot-cpp::${TEST_TARGET} GODOT_TARGET )
