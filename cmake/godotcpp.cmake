@@ -31,6 +31,9 @@ include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/macos.cmake)
 include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/web.cmake)
 include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/windows.cmake)
 
+# IPO Check for when GODOT_LTO is set to fail more gracefully.
+include(CheckIPOSupported)
+
 # Detect number of processors
 include(ProcessorCount)
 ProcessorCount(PROC_MAX)
@@ -171,6 +174,9 @@ function( godotcpp_options )
 
     #TODO optimize
 
+    set( GODOT_LTO "none" CACHE STRING "Link-time optimization" )
+    set_property( CACHE GODOT_LTO PROPERTY STRINGS "none;auto;thin;full" )
+
     option( GODOT_DEV_BUILD "Developer build with dev-only debugging code (DEV_ENABLED)" OFF )
 
     #[[ debug_symbols
@@ -203,6 +209,28 @@ endfunction()
 
 # Function to configure and generate the targets
 function( godotcpp_generate )
+    #[[ Link-Time Optimization ]]
+    if( GODOT_LTO STREQUAL "none") # Default Value
+        set( IS_LTO 0 )
+    elseif( GODOT_LTO STREQUAL "thin" )
+        set( IS_LTO 1 )
+        set( LTO_TYPE "thin" )
+    else() # auto or full
+        set( IS_LTO 1 )
+        set( LTO_TYPE "full" )
+    endif()
+    if( IS_LTO )
+        check_ipo_supported(RESULT result OUTPUT output LANGUAGES CXX )
+        if( NOT result)
+            message( FATAL_ERROR "GODOT_LTO=${GODOT_LTO}, but IPO/LTO is not supported by the current compiler")
+        endif()
+        if( CMAKE_CXX_COMPILER_ID MATCHES "Clang" )
+            message( STATUS "Using LTO: ${LTO_TYPE}" )
+        else(  )
+            message( STATUS "Using LTO" )
+        endif(  )
+    endif()
+
     #[[ Multi-Threaded MSVC Compilation
     When using the MSVC compiler the build command -j <n> only specifies
     parallel jobs or targets, and not multi-threaded compilation To speed up
