@@ -78,6 +78,13 @@ function( common_compiler_flags )
                 $<${IS_GNU}:-fno-gnu-unique>
             >
 
+            $<${IS_LTO}:
+                $<${IS_MSVC}: /GL >
+                $<${IS_CLANG}: -flto=${LTO_TYPE} >
+                $<${IS_APPLECLANG}: -flto=${LTO_TYPE} >
+                $<${IS_GNU}: -flto >
+            >
+
         # MSVC only
         $<${IS_MSVC}:
             # /MP isn't valid for clang-cl with msvc frontend
@@ -171,6 +178,13 @@ function( common_compiler_flags )
                 $<${IS_GNU}:-s>
                 $<${IS_CLANG}:-s>
                 $<${IS_APPLECLANG}:-Wl,-S -Wl,-x -Wl,-dead_strip>
+            >
+
+            $<${IS_LTO}:
+                $<${IS_MSVC}: /LTCG:INCREMENTAL >
+                $<${IS_CLANG}: -flto=${LTO_TYPE} >
+                $<${IS_APPLECLANG}: -flto=${LTO_TYPE} >
+                $<${IS_GNU}: -flto >
             >
     )
 
