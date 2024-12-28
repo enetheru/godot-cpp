@@ -201,6 +201,31 @@ function( godotcpp_options )
     windows_options()
 endfunction()
 
+#[[ Generate doc_data.gen.cpp]]
+function( generate_doc_source OUT_VAR_NAME XML_SOURCES )
+
+    set( OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/gen/doc_data.gen.cpp" )
+
+    # quote and join to form the interior of a python array.
+    list( TRANSFORM XML_SOURCES REPLACE "(.*\.xml)" "'\\1'" )
+    list( JOIN XML_SOURCES "," XML_SOURCES )
+
+    # Lists in CMake are delimited by ';', so this works.
+    set( PYTHON_SCRIPT "from doc_source_generator import generate_doc_source"
+            "generate_doc_source( '${OUTPUT_FILE}', [${XML_SOURCES}] )" )
+
+    add_custom_command( OUTPUT ${OUTPUT_FILE}
+            COMMAND "${Python3_EXECUTABLE}" "-c" "${PYTHON_SCRIPT}"
+            VERBATIM
+            WORKING_DIRECTORY ${godot-cpp_SOURCE_DIR}
+            DEPENDS ${godot-cpp_SOURCE_DIR}/doc_source_generator.py
+            COMMENT "Generating Doc Data"
+    )
+
+    # Propagate generated file to caller scope
+    set( ${OUT_VAR_NAME} ${OUTPUT_FILE} PARENT_SCOPE )
+endfunction()
+
 # Function to configure and generate the targets
 function( godotcpp_generate )
     #[[ Multi-Threaded MSVC Compilation

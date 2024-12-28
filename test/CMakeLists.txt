@@ -3,10 +3,17 @@ Integration Testing
 -------------------
 
 The Test target used to validate changes in the GitHub CI.
-
 ]=======================================================================]
 
 message( STATUS "Testing Integration targets are enabled.")
+
+# Generate Doc Data
+file( GLOB_RECURSE DOC_XML
+    LIST_DIRECTORIES NO
+    CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/doc_classes/*.xml )
+
+generate_doc_source( DOC_DATA "${DOC_XML}" )
 
 foreach( TARGET_ALIAS template_debug template_release editor )
     set( TARGET_NAME "godot-cpp.test.${TARGET_ALIAS}" )
@@ -22,6 +29,11 @@ foreach( TARGET_ALIAS template_debug template_release editor )
             src/register_types.h
             src/tests.h
     )
+
+    # conditionally add doc data to compile output
+    if( TARGET_ALIAS MATCHES "editor|template_debug" )
+        target_sources( ${TARGET_NAME} PRIVATE ${DOC_DATA} )
+    endif(   )
 
     target_link_libraries( ${TARGET_NAME} PRIVATE ${LINK_TARGET} )
 
