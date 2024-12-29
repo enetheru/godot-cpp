@@ -240,16 +240,9 @@ function( godotcpp_generate )
         set(GODOT_SYSTEM_HEADERS_ATTRIBUTE SYSTEM)
     endif ()
 
-    #[[ Generate Bindings ]]
-    if(NOT DEFINED BITS)
-        set(BITS 32)
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(BITS 64)
-        endif(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    endif()
-
+    #[[ Configure Binding Variables ]]
     set(GODOT_GDEXTENSION_API_FILE "${GODOT_GDEXTENSION_DIR}/extension_api.json")
-    if (NOT "${GODOT_CUSTOM_API_FILE}" STREQUAL "")  # User-defined override.
+    if( GODOT_CUSTOM_API_FILE )  # User-defined override.
         set(GODOT_GDEXTENSION_API_FILE "${GODOT_CUSTOM_API_FILE}")
     endif()
     message( STATUS "GODOT_GDEXTENSION_API_FILE = '${GODOT_GDEXTENSION_API_FILE}'")
@@ -257,12 +250,8 @@ function( godotcpp_generate )
         message( STATUS "GODOT_BUILD_PROFILE = '${GODOT_BUILD_PROFILE}'")
     endif(  )
 
-    # Code Generation option
-    if(GODOT_GENERATE_TEMPLATE_GET_NODE)
-        set(GENERATE_BINDING_PARAMETERS "True")
-    else()
-        set(GENERATE_BINDING_PARAMETERS "False")
-    endif()
+    set( GENERATE_BINDING_PARAMETERS "$<IF:$<BOOL:${GODOT_GENERATE_TEMPLATE_GET_NODE}>,True,False>" )
+    math( EXPR BITS "${CMAKE_SIZEOF_VOID_P} * 8" ) # CMAKE_SIZEOF_VOID_P refers to target architecture.
 
     # generate the file list to use
     binding_generator_get_file_list( GENERATED_FILES_LIST
