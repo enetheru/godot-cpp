@@ -11,18 +11,12 @@ This if statement simply silences that warning.
 if( CMAKE_C_COMPILER )
 endif ()
 
-#[=======================================================================[.rst:
-Include Platform Files
-----------------------
-
-Because these files are included into the top level CMakelists.txt before the
+#[[ Include Platform Files
+Because these files are included into the top level CMakeLists.txt before the
 project directive, it means that
 
-* ``CMAKE_CURRENT_SOURCE_DIR`` is the location of godot-cpp's CMakeLists.txt
-* ``CMAKE_SOURCE_DIR`` is the location where any prior ``project(...)``
-  directive was
-
-]=======================================================================]
+CMAKE_CURRENT_SOURCE_DIR is the location of godot-cpp's CMakeLists.txt
+CMAKE_SOURCE_DIR is the location where any prior project() directive was ]]
 include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/common_compiler_flags.cmake)
 include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/android.cmake)
 include( ${CMAKE_CURRENT_SOURCE_DIR}/cmake/ios.cmake)
@@ -42,7 +36,8 @@ set( PLATFORM_LIST linux macos windows android ios web )
 # List of known architectures
 set( ARCH_LIST universal x86_32 x86_64 arm32 arm64 rv64 ppc32 ppc64 wasm32 )
 
-# Function to map processors to known architectures
+#[=============================[ godot_arch_map ]=============================]
+#[[ Function to map CMAKE_SYSTEM_PROCESSOR names to godot arch equivalents ]]
 function( godot_arch_map ALIAS PROC )
     string( TOLOWER "${PROC}" PROC )
 
@@ -81,9 +76,8 @@ function( godot_arch_map ALIAS PROC )
     endif ()
 endfunction()
 
-
-#[[ Generate File List
-Use the binding_generator.py Python script to determine the list of files that
+#[====================[ bindings_generator.get_file_list ]====================]
+#[[ Use the binding_generator.py Python script to determine the list of files that
 will be passed to the code generator using extension_api.json and build_profile.json.
 
 This happens for every configure.]]
@@ -126,7 +120,7 @@ function( binding_generator_get_file_list OUT_VAR_NAME API_FILEPATH PROFILE_FILE
 endfunction(  )
 
 
-# Function to define all the options.
+#[===========================[ godot-cpp Options ]===========================]
 function( godotcpp_options )
     #NOTE: platform is managed using toolchain files.
 
@@ -201,7 +195,7 @@ function( godotcpp_options )
     windows_options()
 endfunction()
 
-# Function to configure and generate the targets
+#[===========================[ Target Generation ]===========================]
 function( godotcpp_generate )
     #[[ Multi-Threaded MSVC Compilation
     When using the MSVC compiler the build command -j <n> only specifies
