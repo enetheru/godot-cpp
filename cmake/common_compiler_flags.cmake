@@ -1,94 +1,187 @@
-# Add warnings based on compiler & version
-# Set some helper variables for readability
-set( compiler_less_than_v8 "$<VERSION_LESS:$<CXX_COMPILER_VERSION>,8>" )
-set( compiler_greater_than_or_equal_v9 "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,9>" )
-set( compiler_greater_than_or_equal_v11 "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,11>" )
-set( compiler_less_than_v11 "$<VERSION_LESS:$<CXX_COMPILER_VERSION>,11>" )
-set( compiler_greater_than_or_equal_v12 "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,12>" )
+#[=======================================================================[.rst:
+Common Compiler Flags
+---------------------
 
-# These compiler options reflect what is in godot/SConstruct.
-target_compile_options( ${PROJECT_NAME} PRIVATE
-    # MSVC only
-    $<${compiler_is_msvc}:
-        /W4
+This file contains host platform toolchain and target platform agnostic
+configuration. It includes flags like optimization levels, warnings, and
+features. For target platform specific flags look to each of the
+``cmake/<platform>.cmake`` files.
 
-        # Disable warnings which we don't plan to fix.
-        /wd4100  # C4100 (unreferenced formal parameter): Doesn't play nice with polymorphism.
-        /wd4127  # C4127 (conditional expression is constant)
-        /wd4201  # C4201 (non-standard nameless struct/union): Only relevant for C89.
-        /wd4244  # C4244 C4245 C4267 (narrowing conversions): Unavoidable at this scale.
-        /wd4245
-        /wd4267
-        /wd4305  # C4305 (truncation): double to float or real_t, too hard to avoid.
-        /wd4514  # C4514 (unreferenced inline function has been removed)
-        /wd4714  # C4714 (function marked as __forceinline not inlined)
-        /wd4820  # C4820 (padding added after construct)
-    >
+The default compile and link options CMake adds can be found in the
+platform modules_. When a project is created it initializes its variables from
+the ``CMAKE_*`` values. The cleanest way I have found to alter these defaults
+is the use of the ``CMAKE_PROJECT_<PROJECT-NAME>_INCLUDE`` as demonstrated by
+the emsdkHack.cmake to overcome the limitation on shared library creation.
 
-    # Clang and GNU common options
-    $<$<OR:${compiler_is_clang},${compiler_is_gnu}>:
-        -Wall
-        -Wctor-dtor-privacy
-        -Wextra
-        -Wno-unused-parameter
-        -Wnon-virtual-dtor
-        -Wwrite-strings
-    >
+So far the emsdkHack is the only modification to the defaults we have made.
 
-    # Clang only
-    $<${compiler_is_clang}:
-        -Wimplicit-fallthrough
-        -Wno-ordered-compare-function-pointers
-    >
+.. _modules: https://github.com/Kitware/CMake/blob/master/Modules/Platform/
 
-    # GNU only
-    $<${compiler_is_gnu}:
-        -Walloc-zero
-        -Wduplicated-branches
-        -Wduplicated-cond
-        -Wno-misleading-indentation
-        -Wplacement-new=1
-        -Wshadow-local
-        -Wstringop-overflow=4
-    >
-    $<$<AND:${compiler_is_gnu},${compiler_less_than_v8}>:
+]=======================================================================]
+
+#[[ Compiler Configuration, not to be confused with build targets ]]
+set( DEBUG_SYMBOLS "$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>" )
+
+#[[ Compiler Identification ]]
+set( IS_CLANG "$<CXX_COMPILER_ID:Clang>" )
+set( IS_APPLECLANG "$<CXX_COMPILER_ID:AppleClang>" )
+set( IS_GNU "$<CXX_COMPILER_ID:GNU>" )
+set( IS_MSVC "$<CXX_COMPILER_ID:MSVC>" )
+set( NOT_MSVC "$<NOT:$<CXX_COMPILER_ID:MSVC>>" )
+
+set( LT_V8  "$<VERSION_LESS:$<CXX_COMPILER_VERSION>,8>" )
+set( GE_V9  "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,9>" )
+set( GT_V11 "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,11>" )
+set( LT_V11 "$<VERSION_LESS:$<CXX_COMPILER_VERSION>,11>" )
+set( GE_V12 "$<VERSION_GREATER_EQUAL:$<CXX_COMPILER_VERSION>,12>" )
+
+#[===========================[ compiler_detection ]===========================]
+#[[ Check for clang-cl with MSVC frontend
+The compiler is tested and set when the project command is called.
+The variable CXX_COMPILER_FRONTEND_VARIANT was introduced in 3.14
+The generator expression $<CXX_COMPILER_FRONTEND_VARIANT> wasn't introduced
+until CMake 3.30 so we can't use it yet.
+
+So to support clang downloaded from llvm.org which uses the MSVC frontend
+by default, we need to test for it. ]]
+function( compiler_detection )
+    if( ${CMAKE_CXX_COMPILER_ID} STREQUAL Clang )
+        if( ${CMAKE_CXX_COMPILER_FRONTEND_VARIANT} STREQUAL MSVC )
+            message( "Using clang-cl" )
+            set( IS_CLANG   "0" PARENT_SCOPE )
+            set( IS_MSVC    "1" PARENT_SCOPE )
+            set( NOT_MSVC   "0" PARENT_SCOPE )
+        endif ()
+    endif ()
+endfunction(  )
+
+#[=========================[ common_compiler_flags ]=========================]
+#[[ This function assumes it is being called from within one of the platform
+generate functions, with all the variables from lower scopes defined. ]]
+function( common_compiler_flags )
+
+    # These compiler options reflect what is in godot/SConstruct.
+    target_compile_options( ${TARGET_NAME}
+        # The public flag tells CMake that the following options are transient,
+        #and will propagate to consumers.
+        PUBLIC
+            # Disable exception handling. Godot doesn't use exceptions anywhere, and this
+            # saves around 20% of binary size and very significant build time.
+            $<${DISABLE_EXCEPTIONS}:$<${NOT_MSVC}:-fno-exceptions>>
+
+            # Enabling Debug Symbols
+            $<${DEBUG_SYMBOLS}:
+                # Adding dwarf-4 explicitly makes stacktraces work with clang builds,
+                # otherwise addr2line doesn't understand them.
+                $<${NOT_MSVC}:
+                    -gdwarf-4
+                    $<IF:${IS_DEV_BUILD},-g3,-g2>
+                >
+            >
+
+            $<${IS_DEV_BUILD}:$<${NOT_MSVC}:-fno-omit-frame-pointer -O0>>
+
+            $<${HOT_RELOAD}:$<${IS_GNU}:-fno-gnu-unique>>
+
+        # Warnings below, these do not need to propagate to consumers.
+        PRIVATE
+
+        # MSVC only
+        $<${IS_MSVC}:
+            # /MP isn't valid for clang-cl with msvc frontend
+            $<$<CXX_COMPILER_ID:MSVC>:/MP${PROC_N}>
+
+            /W4      # Warning level 4 (informational) warnings that aren't off by default.
+            # Disable warnings which we don't plan to fix.
+            /wd4100  # C4100 (unreferenced formal parameter): Doesn't play nice with polymorphism.
+            /wd4127  # C4127 (conditional expression is constant)
+            /wd4201  # C4201 (non-standard nameless struct/union): Only relevant for C89.
+            /wd4244  # C4244 C4245 C4267 (narrowing conversions): Unavoidable at this scale.
+            /wd4245
+            /wd4267
+            /wd4305  # C4305 (truncation): double to float or real_t, too hard to avoid.
+            /wd4514  # C4514 (unreferenced inline function has been removed)
+            /wd4714  # C4714 (function marked as __forceinline not inlined)
+            /wd4820  # C4820 (padding added after construct)
+        >
+
+        # Clang and GNU common options
+        $<$<OR:${IS_CLANG},${IS_GNU}>:
+            -Wall
+            -Wctor-dtor-privacy
+            -Wextra
+            -Wno-unused-parameter
+            -Wnon-virtual-dtor
+            -Wwrite-strings
+        >
+
+        # Clang only
+        $<${IS_CLANG}:
+            -Wimplicit-fallthrough
+            -Wno-ordered-compare-function-pointers
+        >
+
+        # GNU only
+        $<${IS_GNU}:
+            -Walloc-zero
+            -Wduplicated-branches
+            -Wduplicated-cond
+            -Wno-misleading-indentation
+            -Wplacement-new=1
+            -Wshadow-local
+            -Wstringop-overflow=4
+        >
+
         # Bogus warning fixed in 8+.
-        -Wno-strict-overflow
-    >
-    $<$<AND:${compiler_is_gnu},${compiler_greater_than_or_equal_v9}>:
-        -Wattribute-alias=2
-    >
-    $<$<AND:${compiler_is_gnu},${compiler_greater_than_or_equal_v11}>:
+        $<${IS_GNU}:$<${LT_V8}:-Wno-strict-overflow>>
+
+        $<${IS_GNU}:$<${GE_V9}:-Wattribute-alias=2>>
+
         # Broke on MethodBind templates before GCC 11.
-        -Wlogical-op
-    >
-    $<$<AND:${compiler_is_gnu},${compiler_less_than_v11}>:
+        $<${IS_GNU}:$<${GT_V11}:-Wlogical-op>>
+
         # Regression in GCC 9/10, spams so much in our variadic templates that we need to outright disable it.
-        -Wno-type-limits
-    >
-    $<$<AND:${compiler_is_gnu},${compiler_greater_than_or_equal_v12}>:
+        $<${IS_GNU}:$<${LT_V11}:-Wno-type-limits>>
+
         # False positives in our error macros, see GH-58747.
-        -Wno-return-type
-    >
-)
+        $<${IS_GNU}:$<${GE_V12}:-Wno-return-type>>
 
-# Treat warnings as errors
-function( set_warning_as_error )
-    message( STATUS "[${PROJECT_NAME}] Treating warnings as errors")
-    if ( CMAKE_VERSION VERSION_GREATER_EQUAL "3.24" )
-        set_target_properties( ${PROJECT_NAME}
-            PROPERTIES
-                COMPILE_WARNING_AS_ERROR ON
-        )
-    else()
-        target_compile_options( ${PROJECT_NAME}
-            PRIVATE
-                $<${compiler_is_msvc}:/WX>
-                $<$<OR:${compiler_is_clang},${compiler_is_gnu}>:-Werror>
-        )
-    endif()
+    )
+
+    target_compile_definitions(${TARGET_NAME}
+        PUBLIC
+            GDEXTENSION
+
+            # features
+            $<${DEBUG_FEATURES}:DEBUG_ENABLED DEBUG_METHODS_ENABLED>
+
+            $<${IS_DEV_BUILD}:DEV_ENABLED>
+
+            $<${HOT_RELOAD}:HOT_RELOAD_ENABLED>
+
+            $<$<STREQUAL:${GODOT_PRECISION},double>:REAL_T_IS_DOUBLE>
+
+            $<${IS_MSVC}:$<${DISABLE_EXCEPTIONS}:_HAS_EXCEPTIONS=0>>
+    )
+
+    target_link_options( ${TARGET_NAME}
+        PRIVATE
+            $<${IS_MSVC}:/WX /MANIFEST:NO>
+            # /WX             # treat link warnings as errors.
+            # /MANIFEST:NO    # We dont need a manifest
+
+            $<$<NOT:${DEBUG_SYMBOLS}>:
+                $<${IS_GNU}:-s>
+                $<${IS_CLANG}:-s>
+                $<${IS_APPLECLANG}:-Wl,-S -Wl,-x -Wl,-dead_strip>
+            >
+
+            $<${IS_LTO}:
+                $<${IS_MSVC}: /LTCG:INCREMENTAL >
+                $<${IS_CLANG}: -flto=${LTO_TYPE} >
+                $<${IS_APPLECLANG}: -flto=${LTO_TYPE} >
+                $<${IS_GNU}: -flto >
+            >
+    )
+
 endfunction()
-
-if ( GODOT_WARNING_AS_ERROR )
-    set_warning_as_error()
-endif()
