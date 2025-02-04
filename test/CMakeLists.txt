@@ -42,8 +42,10 @@ foreach( TARGET_ALIAS template_debug template_release editor )
     get_target_property( GODOTCPP_SUFFIX   ${LINK_TARGET} GODOTCPP_SUFFIX      )
     get_target_property( OSX_ARCH       ${LINK_TARGET} OSX_ARCHITECTURES )
 
-    set_target_properties( ${TARGET_NAME}
-            PROPERTIES
+    # gersemi: off
+    set_target_properties(
+        ${TARGET_NAME}
+        PROPERTIES
             CXX_STANDARD 17
             CXX_EXTENSIONS OFF
             CXX_VISIBILITY_PRESET ${GODOTCPP_SYMBOL_VISIBILITY}
@@ -67,6 +69,7 @@ foreach( TARGET_ALIAS template_debug template_release editor )
             # Some IDE's respect this property to logically group targets
             FOLDER "godot-cpp"
     )
+    # gersemi: on
 
     # CMAKE_SYSTEM_NAME refers to the target system
     if( CMAKE_SYSTEM_NAME STREQUAL Darwin )

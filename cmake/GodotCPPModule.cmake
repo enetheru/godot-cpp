@@ -137,6 +137,7 @@ function( generate_doc_source OUTPUT_PATH SOURCES )
             VERBATIM
             WORKING_DIRECTORY "${godot-cpp_SOURCE_DIR}"
             DEPENDS
+        DEPENDS #
             "${godot-cpp_SOURCE_DIR}/doc_source_generator.py"
             "${SOURCES}"
             COMMENT "Generating: ${OUTPUT_PATH}"

@@ -46,19 +46,14 @@ endfunction(  )
 
 function( common_compiler_flags )
 
-    target_compile_features(${TARGET_NAME}
-            PUBLIC
-            cxx_std_17
-    )
-
+    # gersemi: off
     # These compiler options reflect what is in godot/SConstruct.
-    target_compile_options( ${TARGET_NAME}
+    target_compile_options(
+        ${TARGET_NAME}
         PUBLIC
             # Disable exception handling. Godot doesn't use exceptions anywhere, and this
             # saves around 20% of binary size and very significant build time.
-            $<${DISABLE_EXCEPTIONS}:
-                $<${NOT_MSVC}:-fno-exceptions>
-            >
+            $<${DISABLE_EXCEPTIONS}:$<${NOT_MSVC}:-fno-exceptions>>
 
             # Enabling Debug Symbols
             $<${DEBUG_SYMBOLS}:
@@ -70,78 +65,75 @@ function( common_compiler_flags )
                 >
             >
 
-            $<${IS_DEV_BUILD}:
-                $<${NOT_MSVC}:-fno-omit-frame-pointer -O0>
+            $<${IS_DEV_BUILD}:$<${NOT_MSVC}:-fno-omit-frame-pointer -O0>>
+
+            $<${HOT_RELOAD}:$<${IS_GNU}:-fno-gnu-unique>>
+
+            # MSVC only
+            $<${IS_MSVC}:
+                # /MP isn't valid for clang-cl with msvc frontend
+                $<$<CXX_COMPILER_ID:MSVC>:/MP${PROC_N}>
+                /W4
+
+                # Disable warnings which we don't plan to fix.
+                /wd4100  # C4100 (unreferenced formal parameter): Doesn't play nice with polymorphism.
+                /wd4127  # C4127 (conditional expression is constant)
+                /wd4201  # C4201 (non-standard nameless struct/union): Only relevant for C89.
+                /wd4244  # C4244 C4245 C4267 (narrowing conversions): Unavoidable at this scale.
+                /wd4245
+                /wd4267
+                /wd4305  # C4305 (truncation): double to float or real_t, too hard to avoid.
+                /wd4514  # C4514 (unreferenced inline function has been removed)
+                /wd4714  # C4714 (function marked as __forceinline not inlined)
+                /wd4820  # C4820 (padding added after construct)
+
+                /utf-8
             >
 
-            $<${HOT_RELOAD}:
-                $<${IS_GNU}:-fno-gnu-unique>
+            # Clang and GNU common options
+            $<$<OR:${IS_CLANG},${IS_GNU}>:
+                -Wall
+                -Wctor-dtor-privacy
+                -Wextra
+                -Wno-unused-parameter
+                -Wnon-virtual-dtor
+                -Wwrite-strings
             >
 
-        # MSVC only
-        $<${IS_MSVC}:
-            # /MP isn't valid for clang-cl with msvc frontend
-            $<$<CXX_COMPILER_ID:MSVC>:/MP${PROC_N}>
-            /W4
+            # Clang only
+            $<${IS_CLANG}:
+                -Wimplicit-fallthrough
+                -Wno-ordered-compare-function-pointers
+            >
 
-            # Disable warnings which we don't plan to fix.
-            /wd4100  # C4100 (unreferenced formal parameter): Doesn't play nice with polymorphism.
-            /wd4127  # C4127 (conditional expression is constant)
-            /wd4201  # C4201 (non-standard nameless struct/union): Only relevant for C89.
-            /wd4244  # C4244 C4245 C4267 (narrowing conversions): Unavoidable at this scale.
-            /wd4245
-            /wd4267
-            /wd4305  # C4305 (truncation): double to float or real_t, too hard to avoid.
-            /wd4514  # C4514 (unreferenced inline function has been removed)
-            /wd4714  # C4714 (function marked as __forceinline not inlined)
-            /wd4820  # C4820 (padding added after construct)
+            # GNU only
+            $<${IS_GNU}:
+                -Walloc-zero
+                -Wduplicated-branches
+                -Wduplicated-cond
+                -Wno-misleading-indentation
+                -Wplacement-new=1
+                -Wshadow-local
+                -Wstringop-overflow=4
 
-            /utf-8
-        >
+                # Bogus warning fixed in 8+.
+                $<${GNU_LT_V8}:-Wno-strict-overflow>
 
-        # Clang and GNU common options
-        $<$<OR:${IS_CLANG},${IS_GNU}>:
-            -Wall
-            -Wctor-dtor-privacy
-            -Wextra
-            -Wno-unused-parameter
-            -Wnon-virtual-dtor
-            -Wwrite-strings
-        >
+                $<${GNU_GE_V9}:-Wattribute-alias=2>
 
-        # Clang only
-        $<${IS_CLANG}:
-            -Wimplicit-fallthrough
-            -Wno-ordered-compare-function-pointers
-        >
+                # Broke on MethodBind templates before GCC 11.
+                $<${GNU_GT_V11}:-Wlogical-op>
 
-        # GNU only
-        $<${IS_GNU}:
-            -Walloc-zero
-            -Wduplicated-branches
-            -Wduplicated-cond
-            -Wno-misleading-indentation
-            -Wplacement-new=1
-            -Wshadow-local
-            -Wstringop-overflow=4
+                # Regression in GCC 9/10, spams so much in our variadic templates that we need to outright disable it.
+                $<${GNU_LT_V11}:-Wno-type-limits>
 
-            # Bogus warning fixed in 8+.
-            $<${GNU_LT_V8}:-Wno-strict-overflow>
-
-            $<${GNU_GE_V9}:-Wattribute-alias=2>
-
-            # Broke on MethodBind templates before GCC 11.
-            $<${GNU_GT_V11}:-Wlogical-op>
-
-            # Regression in GCC 9/10, spams so much in our variadic templates that we need to outright disable it.
-            $<${GNU_LT_V11}:-Wno-type-limits>
-
-            # False positives in our error macros, see GH-58747.
-            $<${GNU_GE_V12}:-Wno-return-type>
-        >
+                # False positives in our error macros, see GH-58747.
+                $<${GNU_GE_V12}:-Wno-return-type>
+            >
     )
 
-    target_compile_definitions(${TARGET_NAME}
+    target_compile_definitions(
+        ${TARGET_NAME}
         PUBLIC
             GDEXTENSION
 
@@ -159,7 +151,8 @@ function( common_compiler_flags )
             $<${THREADS_ENABLED}:THREADS_ENABLED>
     )
 
-    target_link_options( ${TARGET_NAME}
+    target_link_options(
+        ${TARGET_NAME}
         PUBLIC
             $<${IS_MSVC}:
                 /WX             # treat link warnings as errors.
@@ -167,11 +160,12 @@ function( common_compiler_flags )
             >
 
             $<${DEBUG_SYMBOLS}:$<${IS_MSVC}:/DEBUG:FULL>>
+
             $<$<NOT:${DEBUG_SYMBOLS}>:
                 $<${IS_GNU}:-s>
                 $<${IS_CLANG}:-s>
                 $<${IS_APPLECLANG}:-Wl,-S -Wl,-x -Wl,-dead_strip>
             >
     )
-
+    # gersemi: on
 endfunction()

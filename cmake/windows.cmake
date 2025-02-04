@@ -84,9 +84,10 @@ function( windows_generate )
             >
     )
 
-    target_link_options( ${TARGET_NAME}
-            PUBLIC
-
+    # gersemi: off
+    target_link_options(
+        ${TARGET_NAME}
+        PUBLIC
             $<${NOT_MSVC}:
                 -Wl,--no-undefined
                 $<${STATIC_CPP}:
@@ -98,6 +99,7 @@ function( windows_generate )
 
             $<${IS_CLANG}:-lstdc++>
     )
+    # gersemi: on
 
     common_compiler_flags()
 endfunction()

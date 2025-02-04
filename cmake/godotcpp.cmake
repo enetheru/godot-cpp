@@ -324,8 +324,10 @@ function( godotcpp_generate )
                 ${GODOTCPP_GDEXTENSION_DIR}
         )
 
-        set_target_properties( ${TARGET_NAME}
-                PROPERTIES
+        # gersemi: off
+        set_target_properties(
+            ${TARGET_NAME}
+            PROPERTIES
                 CXX_STANDARD 17
                 CXX_EXTENSIONS OFF
                 CXX_VISIBILITY_PRESET ${GODOTCPP_SYMBOL_VISIBILITY}
@@ -349,6 +351,7 @@ function( godotcpp_generate )
                 # Some IDE's respect this property to logically group targets
                 FOLDER "godot-cpp"
         )
+        # gersemi: on
 
         if( CMAKE_SYSTEM_NAME STREQUAL Android )
             android_generate()
