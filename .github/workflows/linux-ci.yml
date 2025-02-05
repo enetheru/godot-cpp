@@ -1,0 +1,29 @@
+name: Continuous integration
+on:
+  workflow_call:
+
+env:
+  # Only used for the cache key. Increment version to force clean build.
+  GODOT_BASE_BRANCH: master
+  # Used to select the version of Godot to run the tests with.
+  GODOT_TEST_VERSION: master
+  # Use UTF-8 on Linux.
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+
+concurrency:
+  group: ci-${{ github.actor }}-${{ github.head_ref || github.run_number }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "${{ matrix.host }}"
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux
+
+    steps:
+      - run: echo "Testing Matrix Combinataions ${{ matrix.host }}"

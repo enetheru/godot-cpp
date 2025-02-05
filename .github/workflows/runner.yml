@@ -15,7 +15,17 @@ jobs:
 
   # Second stage: Run all the builds and some of the tests.
 
-  ci:
+  linux-host:
     name: 🛠️ Continuous Integration
     needs: static-checks
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/linux-ci.yml
+
+#  macos-host:
+#    name: 🛠️ Continuous Integration
+#    needs: static-checks
+#    uses: ./.github/workflows/macos-ci.yml
+#
+#  window-host:
+#    name: 🛠️ Continuous Integration
+#    needs: static-checks
+#    uses: ./.github/workflows/windows-ci.yml
