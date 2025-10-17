@@ -4,74 +4,83 @@ $GODOT = if ($env:GODOT) { $env:GODOT } else { 'godot' }
 $END_STRING = "==== TESTS FINISHED ===="
 $FAILURE_STRING = "******** FAILED ********"
 $HAS_FAILURE = 0
+$MODE = "full"  # Default: run both; set via args
+
+# Parse args
+param(
+[string]$Mode = "full"
+)
+if ($Mode -eq "--unit-only") { $MODE = "unit" }
+elseif ($Mode -eq "--reload-only") { $MODE = "reload" }
 
 # Function to filter spam from output
 function Filter-Output {
     param([string[]]$Lines)
     $Lines | ForEach-Object { $_.TrimEnd() } | Where-Object {
         $_ -notmatch "Narrowing conversion" -and
-        $_ -notmatch "at:\s+GDScript::reload" -and
-        $_ -notmatch "\[\s*\d+%\s*\]" -and
-        $_ -notmatch "first_scan_filesystem" -and
-        $_ -notmatch "loading_editor_layout"
+            $_ -notmatch "at:\s+GDScript::reload" -and
+            $_ -notmatch "\[\s*\d+%\s*\]" -and
+            $_ -notmatch "first_scan_filesystem" -and
+            $_ -notmatch "loading_editor_layout"
     }
 }
 
-# Run Godot and capture output and exit code
-try {
-    $OUTPUT = & $GODOT --path project --debug --headless --quit 2>&1
-    $ERRCODE = $LASTEXITCODE
-}
-catch {
-    $OUTPUT = $_.Exception.Message
-    $ERRCODE = 1
-}
+if ($MODE -eq "unit" -or $MODE -eq "full") {
+    # Run Godot and capture output and exit code
+    try {
+        $OUTPUT = & $GODOT --path project --debug --headless --quit 2>&1
+        $ERRCODE = $LASTEXITCODE
+    }
+    catch {
+        $OUTPUT = $_.Exception.Message
+        $ERRCODE = 1
+    }
 
-# Output the results
-Write-Output $OUTPUT
-Write-Output ""
+    # Output the results
+    Write-Output $OUTPUT
+    Write-Output ""
 
-# Check if tests completed
-if (-not ($OUTPUT -match [regex]::Escape($END_STRING))) {
-    $HAS_FAILURE += 1
-}
+    # Check if tests completed
+    if (-not ($OUTPUT -match [regex]::Escape($END_STRING))) {
+        $HAS_FAILURE += 1
+    }
 
-# Check for test failures
-if ($OUTPUT -match [regex]::Escape($FAILURE_STRING)) {
-    $HAS_FAILURE += 1
-}
-
-# Lock file path (relative to project dir)
-$LOCK_PATH = "project/test_reload_lock"
-
-# Delete lock file before reload test if it exists
-Remove-Item -Path $LOCK_PATH -Force -ErrorAction SilentlyContinue
-
-# Run Godot and capture output and exit code
-try {
-    $OUTPUT = & $GODOT -e --path project --scene reload.tscn --headless --debug test_reload 2>&1
-    $ERRCODE = $LASTEXITCODE
-}
-catch {
-    $OUTPUT = $_.Exception.Message
-    $ERRCODE = 1
+    # Check for test failures
+    if ($OUTPUT -match [regex]::Escape($FAILURE_STRING)) {
+        $HAS_FAILURE += 1
+    }
 }
 
-# Filter and output the results
-$FilteredOutput = Filter-Output -Lines ($OUTPUT -split "`n")
-Write-Output ($FilteredOutput -join "`n")
-Write-Output ""
+if ($MODE -eq "reload" -or $MODE -eq "full") {
+    # Lock file path (relative to project dir)
+    $LOCK_PATH = "project/test_reload_lock"
 
-# Check for test failures
-if ($OUTPUT -match [regex]::Escape($FAILURE_STRING)) {
-    $HAS_FAILURE += 1
+    # Delete lock file before reload test if it exists
+    Remove-Item -Path $LOCK_PATH -Force -ErrorAction SilentlyContinue
+
+    # Run Godot and capture output and exit code
+    try {
+        $OUTPUT = & $GODOT -e --path project --scene reload.tscn --headless --debug test_reload 2>&1
+        $ERRCODE = $LASTEXITCODE
+    }
+    catch {
+        $OUTPUT = $_.Exception.Message
+        $ERRCODE = 1
+    }
+
+    # Filter and output the results
+    $FilteredOutput = Filter-Output -Lines ($OUTPUT -split "`n")
+    Write-Output ($FilteredOutput -join "`n")
+    Write-Output ""
+
+    # Check for test failures
+    if ($OUTPUT -match [regex]::Escape($FAILURE_STRING)) {
+        $HAS_FAILURE += 1
+    }
+
+    # Delete lock file after reload test if it exists
+    Remove-Item -Path $LOCK_PATH -Force -ErrorAction SilentlyContinue
 }
-
-# Lock file path (relative to project dir)
-$LOCK_PATH = "project/test_reload_lock"
-
-# Delete lock file before reload test if it exists
-Remove-Item -Path $LOCK_PATH -Force -ErrorAction SilentlyContinue
 
 if ($HAS_FAILURE -gt 0 ){
     Write-Output "ERROR: Tests failed to complete"

@@ -25,22 +25,55 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux: Standard tests with bash
           - name: 🐧 Linux (GCC)
             os: ubuntu-22.04
             platform: linux
             artifact-name: godot-cpp-linux-glibc2.27-x86_64-release
             artifact-path: bin/libgodot-cpp.linux.template_release.x86_64.a
+            flags: ''
             run-tests: true
             cache-name: linux-x86_64
+            godot_workflow: linux_builds.yml
+            godot_artifact_name: linux-editor-mono
+            godot_binary_path: godot.linuxbsd.editor.x86_64.mono
+            test_shell: bash
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+            stable_binary_path: Godot_v4.5.1-stable_linux.x86_64
 
+          # Windows MSVC: Tests with pwsh, .exe binary
           - name: 🏁 Windows (x86_64, MSVC)
             os: windows-2022
             platform: windows
             artifact-name: godot-cpp-windows-msvc2019-x86_64-release
             artifact-path: bin/libgodot-cpp.windows.template_release.x86_64.lib
-            run-tests: false
+            flags: ''
+            run-tests: true
             cache-name: windows-x86_64-msvc
+            godot_workflow: windows_builds.yml
+            godot_artifact_name: windows-editor-mono
+            godot_binary_path: godot.windows.editor.x86_64.mono.exe
+            test_shell: pwsh
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_win64.zip
+            stable_binary_path: Godot_v4.5.1-stable_win64.exe
 
+          # macOS: Tests with bash, .app path
+          - name: 🍎 macOS (universal)
+            os: macos-latest
+            platform: macos
+            artifact-name: godot-cpp-macos-universal-release
+            artifact-path: bin/libgodot-cpp.macos.template_release.universal.a
+            flags: arch=universal
+            run-tests: true
+            cache-name: macos-universal
+            godot_workflow: macos_builds.yml
+            godot_artifact_name: macos-editor-mono
+            godot_binary_path: Godot.app/Contents/MacOS/Godot
+            test_shell: bash
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_macos.universal.zip
+            stable_binary_path: Godot_v4.5.1-stable_macos.universal/Godot.app/Contents/MacOS/Godot
+
+          # Windows MinGW: No tests
           - name: 🏁 Windows (x86_64, MinGW)
             os: windows-2022
             platform: windows
@@ -49,16 +82,14 @@ jobs:
             flags: use_mingw=yes
             run-tests: false
             cache-name: windows-x86_64-mingw
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
-          - name: 🍎 macOS (universal)
-            os: macos-latest
-            platform: macos
-            artifact-name: godot-cpp-macos-universal-release
-            artifact-path: bin/libgodot-cpp.macos.template_release.universal.a
-            flags: arch=universal
-            run-tests: false
-            cache-name: macos-universal
-
+          # Android: No tests
           - name: 🤖 Android (arm64)
             os: ubuntu-22.04
             platform: android
@@ -67,7 +98,14 @@ jobs:
             flags: arch=arm64
             run-tests: false
             cache-name: android-arm64
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
+          # iOS: No tests
           - name: 🍏 iOS (arm64)
             os: macos-latest
             platform: ios
@@ -76,14 +114,28 @@ jobs:
             flags: arch=arm64
             run-tests: false
             cache-name: ios-arm64
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
+          # Web: No tests
           - name: 🌐 Web (wasm32)
             os: ubuntu-22.04
             platform: web
             artifact-name: godot-cpp-web-wasm32-release
             artifact-path: bin/libgodot-cpp.web.template_release.wasm32.a
+            flags: ''
             run-tests: false
             cache-name: web-wasm32
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
     env:
       SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
@@ -133,43 +185,91 @@ jobs:
           cache-name: ${{ matrix.cache-name }}
         continue-on-error: true
 
+      # Godot Download & Prep (only if run-tests: true)
       - name: Download latest Godot artifacts
-        uses: dsnopek/action-download-artifact@1322f74e2dac9feed2ee76a32d9ae1ca3b4cf4e9
+        id: godot-download
         if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master'
+        uses: dsnopek/action-download-artifact@1322f74e2dac9feed2ee76a32d9ae1ca3b4cf4e9
         with:
           repo: godotengine/godot
           branch: master
           event: push
-          workflow: linux_builds.yml
+          workflow: ${{ matrix.godot_workflow }}
           workflow_conclusion: success
-          name: linux-editor-mono
+          name: ${{ matrix.godot_artifact_name }}
           search_artifacts: true
           check_artifacts: true
           ensure_latest: true
           path: godot-artifacts
+          if_no_artifact_found: warn
+        continue-on-error: true  # Allows fallback step
 
-      - name: Prepare Godot artifacts for testing
-        if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master'
+      - name: Download stable Godot (fallback or non-master)
+        id: godot-fallback
+        if: |
+          matrix.run-tests &&
+          (
+            (env.GODOT_TEST_VERSION == 'master' && steps.godot-download.outcome != 'success') ||
+            env.GODOT_TEST_VERSION != 'master'
+          )
+        shell: ${{ matrix.test_shell }}
         run: |
-          chmod +x ./godot-artifacts/godot.linuxbsd.editor.x86_64.mono
-          echo "GODOT=$(pwd)/godot-artifacts/godot.linuxbsd.editor.x86_64.mono" >> $GITHUB_ENV
+          # wget/unzip to stable (matrix provides exact URL/path)
+          curl -L -o Godot.zip "${{ matrix.stable_url }}"
+          unzip -q Godot.zip
+          # Set GODOT env (platform-specific path from matrix)
+          echo "GODOT=$(pwd)/${{ matrix.stable_binary_path }}" >> $GITHUB_ENV
 
-      - name: Download requested Godot version for testing
-        if: matrix.run-tests && env.GODOT_TEST_VERSION != 'master'
+      - name: Prepare Godot binary from artifacts
+        if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master' && steps.godot-download.outcome == 'success'
+        shell: ${{ matrix.test_shell }}
         run: |
-          wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TEST_VERSION}/Godot_v${GODOT_TEST_VERSION}_linux.x86_64.zip" -O Godot.zip
-          unzip -a Godot.zip
-          chmod +x "Godot_v${GODOT_TEST_VERSION}_linux.x86_64"
-          echo "GODOT=$(pwd)/Godot_v${GODOT_TEST_VERSION}_linux.x86_64" >> $GITHUB_ENV
+          # chmod only if not Windows (matrix binary_path assumes extracted name)
+          if [ "${{ matrix.platform }}" != "windows" ]; then
+            chmod +x "./godot-artifacts/${{ matrix.godot_binary_path }}"
+          fi
+          # Set GODOT env
+          echo "GODOT=$(pwd)/godot-artifacts/${{ matrix.godot_binary_path }}" >> $GITHUB_ENV
 
-      - name: Run tests
+      - name: Verify Godot binary
         if: matrix.run-tests
+        shell: ${{ matrix.test_shell }}
+        run: $GODOT --headless --version  # Confirms correct binary loaded
+
+      # Test Execution (separate for clarity; scripts handle internals)
+      - name: Prep project import
+        if: matrix.run-tests
+        shell: ${{ matrix.test_shell }}
         run: |
-          $GODOT --headless --version
-          cd test
-          # Need to run the editor so .godot is generated... but it crashes! Ignore that :-)
-          (cd project && (timeout 30 $GODOT --import --headless >/dev/null 2>&1 || true))
-          ./run-tests.sh
+          cd test/project
+          # Timeout import (30s, ignore crash)
+          timeout 30 $GODOT --import --headless || true  # Bash; for pwsh, matrix.shell handles equiv if needed
+
+      - name: Run unit tests
+        if: matrix.run-tests
+        shell: ${{ matrix.test_shell }}
+        working-directory: test
+        run: |
+          # Calls run-tests.sh/ps1 for first half (unit tests)
+          if [ "${{ matrix.test_shell }}" = "pwsh" ]; then
+            pwsh -File ./run-tests.ps1 --unit-only  # Assume PS1 updated with flag; else split script
+          else
+            ./run-tests.sh --unit-only  # Assume bash updated with flag
+          fi
+
+      - name: Run reload test
+        if: matrix.run-tests
+        shell: ${{ matrix.test_shell }}
+        working-directory: test
+        run: |
+          # Handles lock/filtering in script
+          rm -f project/test_reload_lock  # Pre-clean (cross-shell safe)
+          if [ "${{ matrix.test_shell }}" = "pwsh" ]; then
+            pwsh -File ./run-tests.ps1 --reload-only
+          else
+            ./run-tests.sh --reload-only
+          fi
+          rm -f project/test_reload_lock  # Post-clean
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

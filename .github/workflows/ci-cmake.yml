@@ -32,76 +32,131 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux: Standard tests
           - name: 🐧 Linux (GCC, Makefiles)
             os: ubuntu-22.04
             platform: linux
+            compiler: ''
             config-flags: -DCMAKE_BUILD_TYPE=Release
+            build-flags: ''
             artifact-name: godot-cpp-linux-glibc2.27-x86_64-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.linux.template_release.x86_64.a
+            flags: ''
             run-tests: true
+            godot_workflow: linux_builds.yml
+            godot_artifact_name: linux-editor-mono
+            godot_binary_path: godot.linuxbsd.editor.x86_64.mono
+            test_shell: bash
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+            stable_binary_path: Godot_v4.5.1-stable_linux.x86_64
 
+          # Windows MSVC: Tests (will call .ps1 via conditional)
           - name: 🏁 Windows (x86_64, MSVC)
             os: windows-2022
             platform: windows
             compiler: msvc
+            config-flags: ''
             build-flags: --config Release
             artifact-name: godot-cpp-windows-msvc2019-x86_64-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.windows.template_release.x86_64.lib
-            run-tests: false
+            flags: ''
+            run-tests: true
+            godot_workflow: windows_builds.yml
+            godot_artifact_name: windows-editor-mono
+            godot_binary_path: godot.windows.editor.x86_64.mono.exe
+            test_shell: pwsh
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_win64.zip
+            stable_binary_path: Godot_v4.5.1-stable_win64.exe
 
+          # macOS: Tests
+          - name: 🍎 macOS (universal, Makefiles)
+            os: macos-latest
+            platform: macos
+            compiler: ''
+            config-flags: -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+            build-flags: ''
+            artifact-name: godot-cpp-macos-universal-release.cmake
+            artifact-path: cmake-build/bin/libgodot-cpp.macos.template_release.universal.a
+            flags: ''
+            run-tests: true
+            godot_workflow: macos_builds.yml
+            godot_artifact_name: macos-editor-mono
+            godot_binary_path: Godot.app/Contents/MacOS/Godot
+            test_shell: bash
+            stable_url: https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_macos.universal.zip
+            stable_binary_path: Godot_v4.5.1-stable_macos.universal/Godot.app/Contents/MacOS/Godot
+
+          # Windows MinGW: No tests
           - name: 🏁 Windows (x86_64, MinGW, Ninja)
             os: windows-2022
             platform: windows
             compiler: mingw
-            config-flags:
-              -GNinja -DCMAKE_BUILD_TYPE=Release
-              -DCMAKE_CXX_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
+            config-flags: -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cc -DCMAKE_CXX_COMPILER=c++
+            build-flags: ''
             artifact-name: godot-cpp-linux-mingw-x86_64-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.windows.template_release.x86_64.a
+            flags: ''
             run-tests: false
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
-          - name: 🍎 macOS (universal, Makefiles)
-            os: macos-latest
-            platform: macos
-            config-flags: -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-            artifact-name: godot-cpp-macos-universal-release.cmake
-            artifact-path: cmake-build/bin/libgodot-cpp.macos.template_release.universal.a
-            run-tests: false
-
+          # Android: No tests
           - name: 🤖 Android (arm64, Ninja)
             os: ubuntu-22.04
             platform: android
-            config-flags:
-              -G Ninja -DCMAKE_BUILD_TYPE=Release
-              --toolchain ${ANDROID_HOME}/ndk/28.1.13356709/build/cmake/android.toolchain.cmake
-              -DANDROID_PLATFORM=24 -DANDROID_ABI=arm64-v8a
+            compiler: ''
+            config-flags: -G Ninja -DCMAKE_BUILD_TYPE=Release --toolchain ${ANDROID_HOME}/ndk/28.1.13356709/build/cmake/android.toolchain.cmake -DANDROID_PLATFORM=24 -DANDROID_ABI=arm64-v8a
+            build-flags: ''
             artifact-name: godot-cpp-android-arm64-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.android.template_release.arm64.a
             flags: arch=arm64
             run-tests: false
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
+          # iOS: No tests
           - name: 🍏 iOS (arm64, XCode)
             os: macos-latest
             platform: ios
-            config-flags:
-              -G Xcode
-              --toolchain cmake/ios.toolchain.cmake
-              -DPLATFORM=OS64
+            compiler: ''
+            config-flags: -G Xcode --toolchain cmake/ios.toolchain.cmake -DPLATFORM=OS64
             build-flags: --config Release
             artifact-name: godot-cpp-ios-arm64-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.ios.template_release.arm64.a
             flags: arch=arm64
             run-tests: false
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
+          # Web: No tests
           - name: 🌐 Web (wasm32, Ninja)
             os: ubuntu-22.04
             platform: web
-            config-flags:
-              -G Ninja  -DCMAKE_BUILD_TYPE=Release
-              --toolchain ${EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+            compiler: ''
+            config-flags: -G Ninja -DCMAKE_BUILD_TYPE=Release --toolchain ${EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+            build-flags: ''
             artifact-name: godot-cpp-web-wasm32-release.cmake
             artifact-path: cmake-build/bin/libgodot-cpp.web.template_release.wasm32.a
+            flags: ''
             run-tests: false
+            godot_workflow: ''
+            godot_artifact_name: ''
+            godot_binary_path: ''
+            test_shell: bash
+            stable_url: ''
+            stable_binary_path: ''
 
     steps:
       - name: Checkout
@@ -120,63 +175,99 @@ jobs:
           buildtool: cmake
 
       - name: Configure godot-cpp-test with template_debug
-        run: >
-          cmake --log-level=VERBOSE -S . -B cmake-build ${{ env.config-flags }} ${{ matrix.config-flags }}
+        run: cmake --log-level=VERBOSE -S . -B cmake-build ${{ env.config-flags }} ${{ matrix.config-flags }}
 
       - name: Build godot-cpp-test (template_debug)
-        run: >
-          cmake --build cmake-build --verbose  --target godot-cpp-test ${{ matrix.build-flags }}
+        run: cmake --build cmake-build --verbose --target godot-cpp-test ${{ matrix.build-flags }}
 
       - name: Configure godot-cpp-test with template_release
-        run: >
-          cmake --fresh --log-level=VERBOSE -S . -B cmake-build
-          -DGODOTCPP_TARGET=template_release ${{ env.config-flags }} ${{ matrix.config-flags }}
+        run: cmake --fresh --log-level=VERBOSE -S . -B cmake-build -DGODOTCPP_TARGET=template_release ${{ env.config-flags }} ${{ matrix.config-flags }}
 
       - name: Build godot-cpp-test (template_release)
-        run: >
-          cmake --build cmake-build --verbose  --target godot-cpp-test ${{ matrix.build-flags }}
+        run: cmake --build cmake-build --verbose --target godot-cpp-test ${{ matrix.build-flags }}
 
       - name: Run sccache stat for check
         shell: bash
         run: ${SCCACHE_PATH} --show-stats
 
+      # Godot Download & Prep (only if run-tests: true)
       - name: Download latest Godot artifacts
-        uses: dsnopek/action-download-artifact@1322f74e2dac9feed2ee76a32d9ae1ca3b4cf4e9
+        id: godot-download
         if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master'
+        uses: dsnopek/action-download-artifact@1322f74e2dac9feed2ee76a32d9ae1ca3b4cf4e9
         with:
           repo: godotengine/godot
           branch: master
           event: push
-          workflow: linux_builds.yml
+          workflow: ${{ matrix.godot_workflow }}
           workflow_conclusion: success
-          name: linux-editor-mono
+          name: ${{ matrix.godot_artifact_name }}
           search_artifacts: true
           check_artifacts: true
           ensure_latest: true
           path: godot-artifacts
+          if_no_artifact_found: warn
+        continue-on-error: true
 
-      - name: Prepare Godot artifacts for testing
-        if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master'
+      - name: Download stable Godot (fallback or non-master)
+        id: godot-fallback
+        if: |
+          matrix.run-tests &&
+          (
+            (env.GODOT_TEST_VERSION == 'master' && steps.godot-download.outcome != 'success') ||
+            env.GODOT_TEST_VERSION != 'master'
+          )
+        shell: bash
         run: |
-          chmod +x ./godot-artifacts/godot.linuxbsd.editor.x86_64.mono
-          echo "GODOT=$(pwd)/godot-artifacts/godot.linuxbsd.editor.x86_64.mono" >> $GITHUB_ENV
+          curl -L -o Godot.zip "${{ matrix.stable_url }}"
+          unzip -q Godot.zip
+          echo "GODOT=$(pwd)/${{ matrix.stable_binary_path }}" >> $GITHUB_ENV
 
-      - name: Download requested Godot version for testing
-        if: matrix.run-tests && env.GODOT_TEST_VERSION != 'master'
+      - name: Prepare Godot binary from artifacts
+        if: matrix.run-tests && env.GODOT_TEST_VERSION == 'master' && steps.godot-download.outcome == 'success'
+        shell: bash
         run: |
-          wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TEST_VERSION}/Godot_v${GODOT_TEST_VERSION}_linux.x86_64.zip" -O Godot.zip
-          unzip -a Godot.zip
-          chmod +x "Godot_v${GODOT_TEST_VERSION}_linux.x86_64"
-          echo "GODOT=$(pwd)/Godot_v${GODOT_TEST_VERSION}_linux.x86_64" >> $GITHUB_ENV
+          if [ "${{ matrix.platform }}" != "windows" ]; then
+            chmod +x "./godot-artifacts/${{ matrix.godot_binary_path }}"
+          fi
+          echo "GODOT=$(pwd)/godot-artifacts/${{ matrix.godot_binary_path }}" >> $GITHUB_ENV
 
-      - name: Run tests
+      - name: Verify Godot binary
         if: matrix.run-tests
+        shell: bash
+        run: $GODOT --headless --version
+
+      # Test Execution
+      - name: Prep project import
+        if: matrix.run-tests
+        shell: bash
         run: |
-          $GODOT --headless --version
-          cd test
-          # Need to run the editor so .godot is generated... but it crashes! Ignore that :-)
-          (cd project && (timeout 30 $GODOT --import --headless >/dev/null 2>&1 || true))
-          ./run-tests.sh
+          cd test/project
+          timeout 30 $GODOT --import --headless || true
+
+      - name: Run unit tests
+        if: matrix.run-tests
+        shell: bash
+        working-directory: test
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            pwsh -File ./run-tests.ps1 --unit-only
+          else
+            ./run-tests.sh --unit-only
+          fi
+
+      - name: Run reload test
+        if: matrix.run-tests
+        shell: bash
+        working-directory: test
+        run: |
+          rm -f project/test_reload_lock
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            pwsh -File ./run-tests.ps1 --reload-only
+          else
+            ./run-tests.sh --reload-only
+          fi
+          rm -f project/test_reload_lock
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
