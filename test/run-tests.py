@@ -60,11 +60,10 @@ PHASE_UNIT_TESTS = 30
 
 verbose: bool = False
 
+
 # ----------------------------------------------
 # Downloader
 # ----------------------------------------------
-
-
 def download_godot(version: str, arch: str) -> Path:
     """Download and extract a specific Godot version and architecture."""
     # Official builds are usually at:
@@ -215,7 +214,10 @@ def filter_output(lines: List[str]) -> List[str]:
 
 
 def setup_temp_portable_godot():
-    vprint(f"\n{'-' * 10} Making Godot Portable {'-' * 10}") if verbose else print("→ Creating portable Godot", end=" ")
+    if verbose:
+        vprint(f"\n{'-' * 10} Making Godot Portable {'-' * 10}")
+    else:
+        print("→ Creating portable Godot", end=" ")
 
     vprint("→ Creating portable marker", end=" ")
     try:
@@ -500,6 +502,59 @@ def cleanup_docs():
 
 
 # ----------------------------------------------
+# Test Loop
+# ----------------------------------------------
+def test_version(arch, version, mode, results) -> bool:
+    global GODOT_EDITOR, GODOT_RELEASE, GODOT_DEBUG
+    if version:
+        print(f"--- Testing against Godot {version} ({arch}) ---")
+        godot_bin = download_godot(version, arch)
+        if not godot_bin:
+            record_test_result(results, version, False, 0)
+            return False
+
+        GODOT_EDITOR = str(godot_bin)
+        GODOT_RELEASE = str(godot_bin)
+        GODOT_DEBUG = str(godot_bin)
+    else:
+        discover_artifacts()
+
+    editor_bin: Path = Path.cwd() / PORTABLE_EDITOR
+    print(f"editor:           {GODOT_EDITOR}")
+    print(f"template_release: {GODOT_RELEASE}")
+    print(f"template_debug:   {GODOT_DEBUG}")
+    print(f"Project:          {PROJECT_DIR}")
+    print(f"Mode:             {mode}")
+    print(f"Verbose:          {verbose}\n")
+
+    start_time = time.time()
+
+    setup_temp_portable_godot()
+    _ = cleanup_godot_cache()
+    _ = pre_import_project(editor_bin)
+
+    success = True
+    # Integration Testing
+    if mode in ("unit", "full") and success:
+        success = run_integration_tests(editor_bin)
+
+    # XML Docgen using engine
+    if mode in ("docs", "full") and success:
+        success = generate_extension_docs(editor_bin)
+
+    cleanup_temp_portable()
+    cleanup_docs()
+
+    duration = int(time.time() - start_time)
+    record_test_result(results, version, success, duration)
+
+    print("-" * 80)
+    status = "PASSED" if success else "FAILED"
+    print(f"TEST SUITE ({version or 'master'}) {status} - took {duration}s")
+    return success
+
+
+# ----------------------------------------------
 # Main
 # ----------------------------------------------
 def main():
@@ -574,57 +629,9 @@ def main():
     results = []  # list of dicts for table + JSON
 
     for version in versions:
-        global GODOT_EDITOR, GODOT_RELEASE, GODOT_DEBUG
-        if version:
-            print(f"--- Testing against Godot {version} ({arch}) ---")
-            godot_bin = download_godot(version, arch)
-            if not godot_bin:
-                overall_success = False
-                record_test_result(results, version, False, 0)
-                continue
+        overall_success &= test_version(arch, version, mode, results)
 
-            GODOT_EDITOR = str(godot_bin)
-            GODOT_RELEASE = str(godot_bin)
-            GODOT_DEBUG = str(godot_bin)
-        else:
-            discover_artifacts()
-
-        editor_bin: Path = Path.cwd() / PORTABLE_EDITOR
-        print(f"editor:           {GODOT_EDITOR}")
-        print(f"template_release: {GODOT_RELEASE}")
-        print(f"template_debug:   {GODOT_DEBUG}")
-        print(f"Project:          {PROJECT_DIR}")
-        print(f"Mode:             {mode}")
-        print(f"Verbose:          {verbose}\n")
-
-        start_time = time.time()
-
-        setup_temp_portable_godot()
-        _ = cleanup_godot_cache()
-        _ = pre_import_project(editor_bin)
-
-        success = True
-        # Perform Integration Testing
-        if mode in ("unit", "full") and success:
-            success = run_integration_tests(editor_bin)
-
-        if mode in ("docs", "full") and success:
-            success = generate_extension_docs(editor_bin)
-
-        cleanup_temp_portable()
-        cleanup_docs()
-
-        duration = int(time.time() - start_time)
-        record_test_result(results, version, success, duration)
-
-        if not success:
-            overall_success = False
-
-        print("-" * 80)
-        status = "PASSED" if success else "FAILED"
-        print(f"TEST SUITE ({version or 'master'}) {status} - took {duration}s")
-
-    # --- Summary table and metrics artifact ---
+    # --- Summary Table ---
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path and results:
         try:
@@ -633,27 +640,8 @@ def main():
                 f.write("|---------------|------------|--------------|\n")
                 for r in results:
                     f.write(f"| {r['godot_version']:13} | {r['status']:10} | {r['duration_seconds']:12} |\n")
-        except Exception:
+        except (OSError, IOError):
             pass  # ignore summary write failures
-
-    # Write JSON artifact for historical tracking
-    metrics_path = SCRIPT_DIR / "test-metrics.json"
-    try:
-        import json
-
-        with open(metrics_path, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-                    "platform": os.environ.get("RUNNER_OS", "unknown"),
-                    "runner": os.environ.get("RUNNER_NAME", "unknown"),
-                    "results": results,
-                },
-                f,
-                indent=2,
-            )
-    except Exception:
-        pass
 
     builtins.print = original_print
     sys.exit(0 if overall_success else 3)
